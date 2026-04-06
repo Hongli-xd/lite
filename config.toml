@@ -1,0 +1,30 @@
+# zeroclaw-lite 配置
+# 配置文件位置: ~/.zeroclaw-lite.toml 或 ./zeroclaw-lite.toml
+
+# Ollama / 本地模型配置 (不使用时注释掉)
+# ollama_url = "http://localhost:11434"
+# model = "llama3"
+# temperature = 0.7
+
+# MiniMax API 配置 (优先使用)
+minimax_api_key = "sk-cp-HT93UTSKgpBYKYbEhTrU2JlSVEFO_6SEXNjQYTYCGZXwhPRCFn9WBt2NEGU9ZIBu7nJqKK3c1oCgBEPH_P7xBM0b9RoedCYi1wq4Q-cUjMYG-gD0NUSH97U"
+minimax_url = "https://api.minimaxi.com/anthropic"
+minimax_model = "MiniMax-M2.7"
+
+# 工作目录
+workspace_dir = "."
+
+# 工具调用限制
+max_tool_iterations = 10
+
+# XML Dispatcher (MiniMax 使用 OpenAI 兼容格式，设置 false)
+use_xml_dispatcher = false
+
+# 权限级别: read_only, supervised, full
+autonomy_level = "supervised"
+
+# 允许的文件操作目录
+allowed_dirs = ["."]
+
+# 脚本执行 (skills)
+allow_scripts = false
