@@ -375,43 +375,29 @@ struct AnthropicRequest {
 
 #[derive(Deserialize)]
 struct AnthropicResponse {
-    content: AnthropicContent,
+    content: Vec<AnthropicContentBlock>,
 }
 
 #[derive(Deserialize)]
-#[serde(untagged)]
-enum AnthropicContent {
-    /// Content as array of blocks: [{"type": "text", "text": "..."}]
-    Blocks(Vec<AnthropicContentBlock>),
-    /// Content as plain string: "Hello..."
-    PlainText(String),
-    /// Content as object with text field: {"type": "text", "text": "..."}
-    ContentObj { text: String },
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "type", content = "text")]
+#[serde(tag = "type")]
 enum AnthropicContentBlock {
+    #[serde(rename = "text")]
     Text { text: String },
+    #[serde(rename = "thinking")]
+    Thinking { thinking: String },
     #[serde(other)]
-    Other,
+    Unknown,
 }
 
-/// Extract text from AnthropicContent, handling multiple response formats
-fn extract_anthropic_text(content: &AnthropicContent) -> String {
-    match content {
-        AnthropicContent::Blocks(blocks) => {
-            blocks.iter()
-                .filter_map(|b| match b {
-                    AnthropicContentBlock::Text { text } => Some(text.clone()),
-                    AnthropicContentBlock::Other => None,
-                })
-                .collect::<Vec<_>>()
-                .join("")
-        }
-        AnthropicContent::PlainText(s) => s.clone(),
-        AnthropicContent::ContentObj { text } => text.clone(),
-    }
+/// Extract text from content blocks, skipping thinking blocks
+fn extract_anthropic_text(content: &[AnthropicContentBlock]) -> String {
+    content.iter()
+        .filter_map(|b| match b {
+            AnthropicContentBlock::Text { text } => Some(text.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("")
 }
 
 // ── OpenAI completions API types ───────────────────────────────────────────────
@@ -506,7 +492,8 @@ impl Provider for MiniMaxProvider {
                 let body = response.text().await?;
                 eprintln!("[DEBUG] raw response ({} chars): {}", body.len(), &body[..body.len().min(500)]);
 
-                let resp: AnthropicResponse = serde_json::from_str(&body)?;
+                let resp: AnthropicResponse = serde_json::from_str(&body)
+                    .map_err(|e| anyhow::anyhow!("failed to parse Anthropic response: {}\nbody: {}", e, &body[..body.len().min(200)]))?;
                 let text = extract_anthropic_text(&resp.content);
                 Ok(text)
             }
@@ -614,7 +601,11 @@ impl Provider for MiniMaxProvider {
                     anyhow::bail!("MiniMax API error ({status}): {text}");
                 }
 
-                let resp: AnthropicResponse = response.json().await?;
+                let body = response.text().await?;
+                eprintln!("[DEBUG] raw response ({} chars): {}", body.len(), &body[..body.len().min(500)]);
+
+                let resp: AnthropicResponse = serde_json::from_str(&body)
+                    .map_err(|e| anyhow::anyhow!("failed to parse Anthropic response: {}\nbody: {}", e, &body[..body.len().min(200)]))?;
                 let text = extract_anthropic_text(&resp.content);
 
                 Ok(ChatResponse {
